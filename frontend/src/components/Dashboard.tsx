@@ -130,7 +130,7 @@ export default function Dashboard({ onLogout }: Props) {
     <>
       <header className="app-header">
         <div className="header-inner">
-          <h1>IT Links Dashboard</h1>
+          <h1>Watson Chapel IT Links Dashboard</h1>
           <input
             className="search-input"
             type="search"

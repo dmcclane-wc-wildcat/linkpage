@@ -27,7 +27,7 @@ export default function LoginScreen({ onSuccess }: Props) {
   return (
     <div className="login-screen">
       <div className="login-card">
-        <h1>IT Links Dashboard</h1>
+        <h1>Watson Chapel IT Links Dashboard</h1>
         <p>Enter the team passphrase to access shared bookmarks.</p>
         {error && <div className="error-banner">{error}</div>}
         <form onSubmit={handleSubmit}>
