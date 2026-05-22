@@ -42,6 +42,7 @@ export default function Dashboard({ onLogout }: Props) {
   const [editLink, setEditLink] = useState<Link | undefined>();
   const [showCategories, setShowCategories] = useState(false);
   const [commentsLink, setCommentsLink] = useState<Link | undefined>();
+  const [expandedCategoryId, setExpandedCategoryId] = useState<number | null>(null);
 
   const load = useCallback(async (q?: string) => {
     setLoading(true);
@@ -97,6 +98,26 @@ export default function Dashboard({ onLogout }: Props) {
   }
 
   const flatCategories = categories.filter((c) => c.links.length > 0 || !search.trim());
+  const searchActive = search.trim().length > 0;
+
+  useEffect(() => {
+    if (flatCategories.length === 0) return;
+    setExpandedCategoryId((prev) => {
+      if (searchActive) return prev;
+      if (prev !== null && flatCategories.some((c) => c.id === prev)) return prev;
+      return flatCategories[0].id;
+    });
+  }, [flatCategories, searchActive]);
+
+  function isCategoryExpanded(categoryId: number) {
+    if (searchActive) return true;
+    return expandedCategoryId === categoryId;
+  }
+
+  function toggleCategory(categoryId: number) {
+    if (searchActive) return;
+    setExpandedCategoryId((prev) => (prev === categoryId ? null : categoryId));
+  }
 
   return (
     <>
@@ -158,6 +179,8 @@ export default function Dashboard({ onLogout }: Props) {
               <SortableCategorySection
                 key={category.id}
                 category={category}
+                isExpanded={isCategoryExpanded(category.id)}
+                onToggle={() => toggleCategory(category.id)}
                 onEditLink={openEdit}
                 onDeleteLink={handleDeleteLink}
                 onComments={(link) => setCommentsLink(link)}
@@ -208,6 +231,8 @@ export default function Dashboard({ onLogout }: Props) {
 
 function SortableCategorySection({
   category,
+  isExpanded,
+  onToggle,
   onEditLink,
   onDeleteLink,
   onComments,
@@ -215,6 +240,8 @@ function SortableCategorySection({
   onLocalLinksUpdate,
 }: {
   category: Category;
+  isExpanded: boolean;
+  onToggle: () => void;
   onEditLink: (link: Link) => void;
   onDeleteLink: (link: Link) => void;
   onComments: (link: Link) => void;
@@ -251,29 +278,45 @@ function SortableCategorySection({
   }
 
   return (
-    <section ref={setNodeRef} style={style} className="category-section">
+    <section
+      ref={setNodeRef}
+      style={style}
+      className={`category-section${isExpanded ? ' is-expanded' : ''}`}
+    >
       <div className="category-header">
         <button
           type="button"
           className="drag-handle"
           aria-label={`Drag category ${category.name}`}
+          onClick={(e) => e.stopPropagation()}
           {...attributes}
           {...listeners}
         >
           ⋮⋮
         </button>
-        <h2 className="category-title">{category.name}</h2>
-        <span className="badge">{category.links.length}</span>
+        <button
+          type="button"
+          className="category-header-toggle"
+          onClick={onToggle}
+          aria-expanded={isExpanded}
+          aria-controls={`category-links-${category.id}`}
+        >
+          <span className="category-chevron" aria-hidden="true">
+            ▶
+          </span>
+          <h2 className="category-title">{category.name}</h2>
+          <span className="badge">{category.links.length}</span>
+        </button>
       </div>
 
-      {category.links.length > 0 && (
+      {isExpanded && category.links.length > 0 && (
         <DndContext
           sensors={linkSensors}
           collisionDetection={closestCenter}
           onDragEnd={handleLinkDragEnd}
         >
           <SortableContext items={category.links.map((l) => l.id)} strategy={rectSortingStrategy}>
-            <div className="link-grid">
+            <div id={`category-links-${category.id}`} className="link-grid">
               {category.links.map((link) => (
                 <SortableLinkCard
                   key={link.id}
@@ -286,6 +329,11 @@ function SortableCategorySection({
             </div>
           </SortableContext>
         </DndContext>
+      )}
+      {isExpanded && category.links.length === 0 && (
+        <p id={`category-links-${category.id}`} className="category-empty">
+          No links in this category yet.
+        </p>
       )}
     </section>
   );
