@@ -50,7 +50,7 @@ In **Workers & Pages** → your project → **Settings** → **Build**:
 |--------|--------|
 | **Production branch** | `main` |
 | **Root directory** | `/` (leave empty or `.` — **not** `frontend`) |
-| **Build command** | `npm install && npm run build` |
+| **Build command** | `npm run build` |
 | **Build output directory** | `frontend/dist` |
 | **Node.js version** | `20` (or enable in Environment variables: `NODE_VERSION` = `20`) |
 
@@ -88,6 +88,18 @@ Without these, the site may build but login/API will fail.
 
 ---
 
+## Fix: `npm ci` / lock file out of sync
+
+If the build log shows `Missing: it-links-frontend` or `package.json and package-lock.json are in sync`:
+
+1. Pull the latest code (stale `package-lock.json` was removed from the repo).
+2. In Cloudflare → **Build** → set build command to: `npm run build`
+3. Commit and push, then **Retry deployment**.
+
+Optionally, on your PC run `npm install` once and commit the new `package-lock.json` for faster installs (not required).
+
+---
+
 ## Retry deploy
 
 After fixing settings and pushing `wrangler.toml`:
@@ -101,7 +113,8 @@ After fixing settings and pushing `wrangler.toml`:
 
 | Error | Fix |
 |-------|-----|
-| `Could not resolve "react"` / `vite: command not found` | Build command must be `npm install && npm run build` (installs the `frontend` workspace) |
+| `npm ci` / lock file out of sync / `Missing: it-links-frontend` | Delete old `package-lock.json` from the repo (or run `npm install` locally and commit the new lock file). Cloudflare auto-runs `npm install` before your build command |
+| `Could not resolve "react"` / `vite: command not found` | Ensure `workspaces` includes `frontend` in root `package.json`; build command: `npm run build` |
 | `pages_build_output_dir` / config ignored | Ensure `wrangler.toml` has `pages_build_output_dir = "frontend/dist"` (committed to Git) |
 | `REPLACE_AFTER_CREATE` / invalid database | Set real `database_id` in `wrangler.toml` and push |
 | Build succeeds, blank page or 404 | Build output directory must be `frontend/dist`, root directory must be repo root |

@@ -9,17 +9,12 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "concurrently -k -n web,api -c cyan,magenta \"npm run dev:web\" \"npm run dev:api\"",
+    "dev": "npx concurrently@9 -k -n web,api -c cyan,magenta \"npm run dev:web\" \"npm run dev:api\"",
     "dev:web": "npm run dev -w frontend",
-    "dev:api": "wrangler pages dev --port 8788 --proxy 5173",
+    "dev:api": "npx wrangler@4 pages dev --port 8788 --proxy 5173",
     "build": "npm run build -w frontend",
-    "deploy": "npm run build && wrangler pages deploy frontend/dist",
-    "db:migrate:local": "wrangler d1 migrations apply it-links-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply it-links-db --remote"
-  },
-  "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250525.0",
-    "concurrently": "^9.1.2",
-    "wrangler": "^4.14.0"
+    "deploy": "npm run build && npx wrangler@4 pages deploy frontend/dist",
+    "db:migrate:local": "npx wrangler@4 d1 migrations apply it-links-db --local",
+    "db:migrate:remote": "npx wrangler@4 d1 migrations apply it-links-db --remote"
   }
 }

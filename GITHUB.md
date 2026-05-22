@@ -6,8 +6,9 @@ Run these in PowerShell from this folder (`Website of Links`).
 
 ```powershell
 npm install
-npm install --prefix frontend
 ```
+
+This installs the root workspace and `frontend` together. Optional: commit the generated `package-lock.json` for faster Cloudflare builds.
 
 ## 2. Create the GitHub repo
 
