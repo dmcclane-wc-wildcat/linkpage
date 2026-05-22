@@ -72,6 +72,9 @@ function normalizeUrl(url: string): string {
 }
 
 async function parseBody<T>(request: Request): Promise<T> {
+  if (!request?.json) {
+    throw new Error('Invalid request');
+  }
   return (await request.json()) as T;
 }
 
@@ -304,7 +307,7 @@ export const onRequest: PagesFunction<Env, 'path'> = async (context) => {
           url: string;
           description?: string;
           category_id: number;
-        }>();
+        }>(request);
         const trimmedTitle = title?.trim();
         const trimmedUrl = linkUrl?.trim();
         const catId = Number(category_id);
