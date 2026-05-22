@@ -119,6 +119,7 @@ After fixing settings and pushing `wrangler.toml`:
 | `REPLACE_AFTER_CREATE` / invalid database | Set real `database_id` in `wrangler.toml` and push |
 | Build succeeds, blank page or 404 | Build output directory must be `frontend/dist`, root directory must be repo root |
 | Login fails after deploy | Add `PASSPHRASE` and `SESSION_SECRET` secrets; bind D1 as `DB` |
+| Add link returns 500 / Internal Server Error | Run `npm run db:migrate:remote` on your PC; confirm D1 binding `DB` → `it-links-db`; open `https://YOUR-SITE.pages.dev/api/health` — should return `{"ok":true}` |
 | Functions not running | Root directory must not be `frontend`; `functions/` folder must be at repo root |
 
 ---

@@ -31,6 +31,37 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
+function apiError(err: unknown): Response {
+  console.error(err);
+  const message = err instanceof Error ? err.message : String(err);
+  if (!message) return json({ error: 'Internal server error' }, 500);
+  if (message.includes('no such table')) {
+    return json(
+      {
+        error:
+          'Database tables are missing. On your PC run: npm run db:migrate:remote',
+      },
+      503,
+    );
+  }
+  if (message.includes('FOREIGN KEY constraint failed')) {
+    return json(
+      { error: 'That category no longer exists. Refresh the page and try again.' },
+      400,
+    );
+  }
+  if (message.includes('prepare') && message.includes('undefined')) {
+    return json(
+      {
+        error:
+          'Database is not bound. In Cloudflare → your Pages project → Settings → Functions, add D1 binding DB → it-links-db',
+      },
+      503,
+    );
+  }
+  return json({ error: message }, 500);
+}
+
 function normalizeUrl(url: string): string {
   try {
     const u = new URL(url.trim());
@@ -120,10 +151,33 @@ export const onRequest: PagesFunction<Env, 'path'> = async (context) => {
   const authResponse = await handleAuthRoutes(request, env, segments);
   if (authResponse) return authResponse;
 
+  if (segments[0] === 'health' && method === 'GET') {
+    try {
+      if (!env.DB) {
+        return json({ ok: false, error: 'DB binding missing (set variable name DB)' }, 503);
+      }
+      await env.DB.prepare('SELECT 1 FROM categories LIMIT 1').first();
+      await env.DB.prepare('SELECT 1 FROM links LIMIT 1').first();
+      return json({ ok: true });
+    } catch (err) {
+      return apiError(err);
+    }
+  }
+
   const unauthorized = await requireAuth(request, env);
   if (unauthorized) return unauthorized;
 
   try {
+    if (!env.DB) {
+      return json(
+        {
+          error:
+            'Database is not bound. In Cloudflare → your Pages project → Settings → Functions, add D1 binding DB → it-links-db',
+        },
+        503,
+      );
+    }
+
     if (segments[0] === 'dashboard' && method === 'GET') {
       return getDashboard(env, url.searchParams.get('q'));
     }
@@ -253,7 +307,8 @@ export const onRequest: PagesFunction<Env, 'path'> = async (context) => {
         }>();
         const trimmedTitle = title?.trim();
         const trimmedUrl = linkUrl?.trim();
-        if (!trimmedTitle || !trimmedUrl || !category_id) {
+        const catId = Number(category_id);
+        if (!trimmedTitle || !trimmedUrl || !Number.isFinite(catId) || catId <= 0) {
           return json({ error: 'Title, URL, and category are required' }, 400);
         }
         try {
@@ -261,19 +316,32 @@ export const onRequest: PagesFunction<Env, 'path'> = async (context) => {
         } catch {
           return json({ error: 'Invalid URL' }, 400);
         }
+        const category = await env.DB.prepare('SELECT id FROM categories WHERE id = ?')
+          .bind(catId)
+          .first<{ id: number }>();
+        if (!category) {
+          return json({ error: 'Category not found. Refresh the page and try again.' }, 400);
+        }
         const maxOrder = await env.DB.prepare(
           'SELECT COALESCE(MAX(sort_order), -1) as m FROM links WHERE category_id = ?',
         )
-          .bind(category_id)
+          .bind(catId)
           .first<{ m: number }>();
         const sortOrder = (maxOrder?.m ?? -1) + 1;
-        const row = await env.DB.prepare(
+        const insertResult = await env.DB.prepare(
           `INSERT INTO links (category_id, title, url, description, sort_order)
-           VALUES (?, ?, ?, ?, ?)
-           RETURNING id, category_id, title, url, description, sort_order, created_at, updated_at`,
+           VALUES (?, ?, ?, ?, ?)`,
         )
-          .bind(category_id, trimmedTitle, trimmedUrl, description?.trim() ?? '', sortOrder)
+          .bind(catId, trimmedTitle, trimmedUrl, description?.trim() ?? '', sortOrder)
+          .run();
+        const newId = insertResult.meta.last_row_id;
+        const row = await env.DB.prepare(
+          `SELECT id, category_id, title, url, description, sort_order, created_at, updated_at
+           FROM links WHERE id = ?`,
+        )
+          .bind(newId)
           .first<LinkRow>();
+        if (!row) return json({ error: 'Link was saved but could not be loaded' }, 500);
         return json({ link: row }, 201);
       }
 
@@ -329,7 +397,6 @@ export const onRequest: PagesFunction<Env, 'path'> = async (context) => {
 
     return json({ error: 'Not found' }, 404);
   } catch (err) {
-    console.error(err);
-    return json({ error: 'Internal server error' }, 500);
+    return apiError(err);
   }
 };
