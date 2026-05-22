@@ -1,0 +1,121 @@
+# Cloudflare Pages deploy checklist
+
+Use these **exact** settings when connecting your GitHub repo. Most deploy failures come from wrong build settings or a missing D1 database ID.
+
+## Before you connect GitHub
+
+### 1. Create the D1 database and update `wrangler.toml`
+
+On your PC, in the project folder:
+
+```powershell
+npx wrangler d1 create it-links-db
+```
+
+Copy the `database_id` from the output (a long UUID). Open `wrangler.toml` and replace:
+
+```toml
+database_id = "REPLACE_AFTER_CREATE"
+```
+
+with your real ID, for example:
+
+```toml
+database_id = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+```
+
+Then run migrations on production:
+
+```powershell
+npm run db:migrate:remote
+```
+
+Commit and push `wrangler.toml`:
+
+```powershell
+git add wrangler.toml
+git commit -m "Add D1 database ID for Cloudflare"
+git push
+```
+
+**If `database_id` is still `REPLACE_AFTER_CREATE`, the Cloudflare build or deploy will fail.**
+
+---
+
+## Cloudflare Pages project settings
+
+In **Workers & Pages** → your project → **Settings** → **Build**:
+
+| Setting | Value |
+|--------|--------|
+| **Production branch** | `main` |
+| **Root directory** | `/` (leave empty or `.` — **not** `frontend`) |
+| **Build command** | `npm install && npm run build` |
+| **Build output directory** | `frontend/dist` |
+| **Node.js version** | `20` (or enable in Environment variables: `NODE_VERSION` = `20`) |
+
+Do **not** use `npm run dev`. Use **`npm run build`** only.
+
+---
+
+## D1 database binding (required)
+
+1. **Workers & Pages** → your project → **Settings** → **Functions**
+2. Under **D1 database bindings**, add:
+   - **Variable name:** `DB`
+   - **D1 database:** `it-links-db`
+
+This must match `binding = "DB"` in `wrangler.toml`.
+
+---
+
+## Secrets (required for login)
+
+**Settings** → **Environment variables** → **Production** (and Preview if you use it):
+
+| Name | Type | Notes |
+|------|------|--------|
+| `PASSPHRASE` | Secret | Team passphrase to open the site |
+| `SESSION_SECRET` | Secret | Long random string, e.g. 32+ characters |
+
+Generate a session secret (PowerShell):
+
+```powershell
+-join ((48..57) + (65..90) + (97..122) | Get-Random -Count 32 | ForEach-Object { [char]$_ })
+```
+
+Without these, the site may build but login/API will fail.
+
+---
+
+## Retry deploy
+
+After fixing settings and pushing `wrangler.toml`:
+
+1. **Deployments** → **Retry deployment** on the failed build, or
+2. Push any small commit to trigger a new build
+
+---
+
+## Common error messages
+
+| Error | Fix |
+|-------|-----|
+| `Could not resolve "react"` / `vite: command not found` | Build command must be `npm install && npm run build` (installs the `frontend` workspace) |
+| `pages_build_output_dir` / config ignored | Ensure `wrangler.toml` has `pages_build_output_dir = "frontend/dist"` (committed to Git) |
+| `REPLACE_AFTER_CREATE` / invalid database | Set real `database_id` in `wrangler.toml` and push |
+| Build succeeds, blank page or 404 | Build output directory must be `frontend/dist`, root directory must be repo root |
+| Login fails after deploy | Add `PASSPHRASE` and `SESSION_SECRET` secrets; bind D1 as `DB` |
+| Functions not running | Root directory must not be `frontend`; `functions/` folder must be at repo root |
+
+---
+
+## If it still fails
+
+Open the failed deployment → **View build log** → copy the **last 20–30 lines** of the log. That shows whether the failure is:
+
+- **Installing dependencies** (npm)
+- **Building** (vite / typescript)
+- **Deploying** (Cloudflare / wrangler / D1)
+
+Share that snippet to troubleshoot the exact step.

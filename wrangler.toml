@@ -1,0 +1,12 @@
+name = "it-links-dashboard"
+compatibility_date = "2024-08-01"
+pages_build_output_dir = "frontend/dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "it-links-db"
+database_id = "e9916718-76f6-4a47-952c-be9a89b61615"
+migrations_dir = "migrations"
+
+[vars]
+# Set PASSPHRASE and SESSION_SECRET via: wrangler pages secret put PASSPHRASE
