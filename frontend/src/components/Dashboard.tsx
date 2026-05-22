@@ -16,7 +16,7 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   deleteLink,
   fetchDashboard,
@@ -43,6 +43,7 @@ export default function Dashboard({ onLogout }: Props) {
   const [showCategories, setShowCategories] = useState(false);
   const [commentsLink, setCommentsLink] = useState<Link | undefined>();
   const [expandedCategoryId, setExpandedCategoryId] = useState<number | null>(null);
+  const categoriesInitialized = useRef(false);
 
   const load = useCallback(async (q?: string) => {
     setLoading(true);
@@ -98,24 +99,30 @@ export default function Dashboard({ onLogout }: Props) {
   }
 
   const flatCategories = categories.filter((c) => c.links.length > 0 || !search.trim());
-  const searchActive = search.trim().length > 0;
+  const categoryIdsKey = flatCategories.map((c) => c.id).join(',');
 
   useEffect(() => {
-    if (flatCategories.length === 0) return;
+    if (flatCategories.length === 0) {
+      setExpandedCategoryId(null);
+      categoriesInitialized.current = false;
+      return;
+    }
     setExpandedCategoryId((prev) => {
-      if (searchActive) return prev;
       if (prev !== null && flatCategories.some((c) => c.id === prev)) return prev;
-      return flatCategories[0].id;
+      if (prev !== null) return flatCategories[0].id;
+      if (!categoriesInitialized.current) {
+        categoriesInitialized.current = true;
+        return flatCategories[0].id;
+      }
+      return null;
     });
-  }, [flatCategories, searchActive]);
+  }, [categoryIdsKey]);
 
   function isCategoryExpanded(categoryId: number) {
-    if (searchActive) return true;
     return expandedCategoryId === categoryId;
   }
 
   function toggleCategory(categoryId: number) {
-    if (searchActive) return;
     setExpandedCategoryId((prev) => (prev === categoryId ? null : categoryId));
   }
 
