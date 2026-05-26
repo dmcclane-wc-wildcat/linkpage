@@ -71,11 +71,8 @@ function normalizeUrl(url: string): string {
   }
 }
 
-async function parseBody<T>(request: Request): Promise<T> {
-  if (!request?.json) {
-    throw new Error('Invalid request');
-  }
-  return (await request.json()) as T;
+async function parseBody<T>(req: Request): Promise<T> {
+  return (await req.json()) as T;
 }
 
 async function getDashboard(env: Env, query: string | null): Promise<Response> {
