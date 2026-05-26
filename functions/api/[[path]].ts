@@ -355,7 +355,7 @@ export const onRequest: PagesFunction<Env, 'path'> = async (context) => {
             url?: string;
             description?: string;
             category_id?: number;
-          }>();
+          }>(request);
           const existing = await env.DB.prepare('SELECT * FROM links WHERE id = ?')
             .bind(linkId)
             .first<LinkRow>();
